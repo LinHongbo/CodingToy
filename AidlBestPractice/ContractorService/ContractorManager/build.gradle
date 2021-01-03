@@ -1,0 +1,88 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 29
+    buildToolsVersion "29.0.2"
+
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    tasks.each {
+        it.getInputs().each {
+            it.getFiles().each {
+                it.canonicalPath
+            }
+        }
+    }
+
+    afterEvaluate {
+        tasks.matching {
+            "compileDebugAidl".equalsIgnoreCase(it.name) || "compileReleaseAidl".equalsIgnoreCase(it.name)
+        }.each {
+            it.doLast {
+                it.getOutputs().each {
+                    it.getFiles().each {
+                        changeAidlFilePermission(it.canonicalPath)
+                    }
+                }
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+def changeAidlFilePermission(String path) {
+    File file = new File(path)
+    File[] files = file.listFiles()
+    for (File item : files) {
+        if (item.isDirectory()) {
+            changeAidlFilePermission(item.getCanonicalPath())
+        } else {
+            if (item.name.contains(".java")) {
+                RandomAccessFile raf = new RandomAccessFile(item, "rw")
+                long lastPoint = 0
+                String line
+                try {
+                    while ((line = raf.readLine()) != null) {
+                        final long point = raf.getFilePointer()
+                        if (line.contains("extends android.os.IInterface")) {
+                            String str = line.replace("public", "      ")
+                            raf.seek(lastPoint)
+                            raf.writeBytes(str)
+                            break
+                        }
+                        lastPoint = point
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace()
+                    raf.close()
+                }
+            }
+        }
+
+    }
+}

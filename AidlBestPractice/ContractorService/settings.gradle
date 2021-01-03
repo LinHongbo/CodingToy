@@ -1,0 +1,2 @@
+include ':app', ':ContractorManager'
+rootProject.name='ContractorService'
